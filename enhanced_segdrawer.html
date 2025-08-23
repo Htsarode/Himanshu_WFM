@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <link href="assets/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      margin: 0;
+      background-color: #f8f9fa;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    .main-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+    }
+    
+    .canvas-section {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    #canvas-wrapper {
+      position: relative;
+      width: 700px;
+      height: 700px;
+      margin: 0 auto;
+      border: 2px solid #dee2e6;
+      border-radius: 8px;
+      background: #f8f9fa;
+    }
+
+    #slider-wrapper {
+      display: none;
+      position: absolute;
+      z-index: 10;
+      top: 47px;
+      right: 50px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    #canvas, #image-canvas, #temp-canvas {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+    }
+
+    #canvas {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    .tools-section {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .tool-group {
+      margin-bottom: 15px;
+    }
+
+    .tool-group h6 {
+      margin-bottom: 10px;
+      color: #495057;
+      font-weight: 600;
+    }
+
+    .button-wrapper {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .button {
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      padding: 10px 15px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .button.active {
+      background: linear-gradient(135deg, #2196F3, #1976D2);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+    }
+
+    .button.magic-tool {
+      background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+    }
+
+    .button.rect-tool {
+      background: linear-gradient(135deg, #FF9800, #F57C00);
+    }
+
+    .button.pencil-tool {
+      background: linear-gradient(135deg, #607D8B, #455A64);
+    }
+
+    .button.danger {
+      background: linear-gradient(135deg, #f44336, #d32f2f);
+    }
+
+    .button.success {
+      background: linear-gradient(135deg, #4CAF50, #388E3C);
+    }
+
+    .button.info {
+      background: linear-gradient(135deg, #2196F3, #1976D2);
+    }
+
+    .upload-section {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    #file-input-wrapper {
+      border: 2px dashed #dee2e6;
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    #file-input-wrapper:hover {
+      border-color: #007bff;
+      background-color: #f8f9ff;
+    }
+
+    #file-input-wrapper input[type=file] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .status-section {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .status-display {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 15px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      min-height: 60px;
+      overflow-y: auto;
+    }
+
+    .spinner-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .spinner-content {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .d-none {
+      display: none !important;
+    }
+
+    .instructions {
+      background: #e3f2fd;
+      border-left: 4px solid #2196F3;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .instructions h6 {
+      color: #1976D2;
+      margin-bottom: 10px;
+    }
+
+    .instructions ul {
+      margin-bottom: 0;
+      padding-left: 20px;
+    }
+
+    .instructions li {
+      margin-bottom: 5px;
+      color: #424242;
+    }
+
+    .video-controls {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-top: 20px;
+      display: none;
+    }
+
+    .video-controls.show {
+      display: block;
+    }
+
+    .label-selector {
+      margin-left: 15px;
+    }
+
+    .label-selector select {
+      padding: 5px 10px;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      background: white;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="main-container">
+    <!-- Header -->
+    <div class="header">
+      <h1><i class="fas fa-wand-magic-sparkles"></i> Enhanced SAM2 Video Annotation Tool</h1>
+      <p class="mb-0">Magic Tool • Rectangular Tool • Pencil Tool • Video Propagation</p>
+    </div>
+
+    <!-- Upload Section -->
+    <div class="upload-section">
+      <h5><i class="fas fa-cloud-upload-alt"></i> Upload Media</h5>
+      <div id="file-input-wrapper">
+        <i class="fas fa-file-upload fa-3x text-muted mb-3"></i>
+        <h6>Click to upload image or video</h6>
+        <p class="text-muted mb-0">Supports JPG, PNG, MP4, MOV formats</p>
+        <input type="file" id="file-input" accept="image/*,video/*" />
+      </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="instructions">
+      <h6><i class="fas fa-info-circle"></i> How to Use</h6>
+      <ul>
+        <li><strong>Magic Tool:</strong> Click on objects to automatically segment them using AI</li>
+        <li><strong>Rectangular Tool:</strong> Click and drag to create bounding boxes around objects</li>
+        <li><strong>Pencil Tool:</strong> Draw freehand annotations with your mouse</li>
+        <li><strong>Video Mode:</strong> Annotate the first frame, then propagate to the entire video</li>
+      </ul>
+    </div>
+
+    <!-- Tools Section -->
+    <div class="tools-section">
+      <div class="tool-group">
+        <h6><i class="fas fa-tools"></i> Annotation Tools</h6>
+        <div class="button-wrapper">
+          <button class="button magic-tool" id="magic-tool">
+            <i class="fas fa-wand-magic-sparkles"></i> Magic Tool
+          </button>
+          <button class="button rect-tool" id="draw-rect">
+            <i class="fas fa-square"></i> Rectangle Tool
+          </button>
+          <button class="button pencil-tool" id="draw-mask">
+            <i class="fas fa-pencil-alt"></i> Pencil Tool
+          </button>
+          
+          <div class="label-selector">
+            <label for="label-selector">Object Type:</label>
+            <select id="label-selector">
+              <option value="lanes">Lane</option>
+              <option value="drivableArea">Drivable Area</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="tool-group">
+        <h6><i class="fas fa-cogs"></i> Actions</h6>
+        <div class="button-wrapper">
+          <button class="button info" id="seg-everything">
+            <i class="fas fa-layer-group"></i> Segment Everything
+          </button>
+          <button class="button danger" id="undo-path">
+            <i class="fas fa-undo"></i> Undo
+          </button>
+          <button class="button danger" id="remove-image">
+            <i class="fas fa-trash"></i> Clear All
+          </button>
+        </div>
+      </div>
+
+      <div class="tool-group">
+        <h6><i class="fas fa-download"></i> Export</h6>
+        <div class="button-wrapper">
+          <button class="button success" id="download-image">
+            <i class="fas fa-image"></i> Download Image
+          </button>
+          <button class="button success" id="download-video" style="display: none;">
+            <i class="fas fa-video"></i> Download Video
+          </button>
+          <button class="button info" id="propagate-video" style="display: none;">
+            <i class="fas fa-share-alt"></i> Propagate to Video
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Canvas Section -->
+    <div class="canvas-section">
+      <h5><i class="fas fa-palette"></i> Annotation Canvas</h5>
+      <div id="canvas-wrapper">
+        <canvas id="image-canvas" width="700" height="700"></canvas>
+        <canvas id="canvas" width="700" height="700"></canvas>
+        <canvas id="temp-canvas" width="700" height="700"></canvas>
+        
+        <div id="slider-wrapper">
+          <label for="brush-size">Brush Size:</label>
+          <input type="range" id="brush-size" min="1" max="50" value="10">
+          <span id="brush-size-display">10</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Video Controls -->
+    <div class="video-controls" id="video-controls">
+      <h5><i class="fas fa-video"></i> Video Controls</h5>
+      <div class="d-flex align-items-center gap-3">
+        <button class="button" id="prev-frame">
+          <i class="fas fa-step-backward"></i> Previous
+        </button>
+        <div class="flex-grow-1">
+          <input type="range" class="form-range" id="frame-slider" min="0" max="100" value="0">
+          <div class="text-center mt-2">
+            <span id="frame-info">Frame 1 of 100</span>
+          </div>
+        </div>
+        <button class="button" id="next-frame">
+          <i class="fas fa-step-forward"></i> Next
+        </button>
+      </div>
+    </div>
+
+    <!-- Status Section -->
+    <div class="status-section">
+      <h6><i class="fas fa-terminal"></i> Status Log</h6>
+      <div class="status-display" id="status-display">
+        Ready to upload image or video...
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div id="spinner-container" class="spinner-container d-none">
+    <div class="spinner-content">
+      <div class="spinner"></div>
+      <span>Processing...</span>
+    </div>
+  </div>
+
+  <script>
+    // Global variables
+    let canvas, context, imageCanvas, imageContext, tempCanvas, tempContext;
+    let sliderWrapper, slider, brushSizeDisplay;
+    let isDrawing = false, isMagicToolActive = false, isRecting = false;
+    let isErasing = false, isDown = false;
+    let lastX, lastY, brushSize = 10;
+    let scaleFactor = 1, scaledWidth = 0, scaledHeight = 0, scaledX = 0, scaledY = 0;
+    let drawnPaths = [], oriDrawnPaths = [];
+    let promptPoints = [], interactivePaths = [], oriInteractivePaths = [];
+    let currentVideoFrame = 0, totalVideoFrames = 0;
+    let isVideoMode = false;
+
+    // UI elements
+    const fileInput = document.getElementById('file-input');
+    const fileInputWrapper = document.getElementById('file-input-wrapper');
+    const magicToolButton = document.getElementById('magic-tool');
+    const drawRectButton = document.getElementById('draw-rect');
+    const drawMaskButton = document.getElementById('draw-mask');
+    const undoPathButton = document.getElementById('undo-path');
+    const removeImageButton = document.getElementById('remove-image');
+    const segEverythingButton = document.getElementById('seg-everything');
+    const downloadImageButton = document.getElementById('download-image');
+    const downloadVideoButton = document.getElementById('download-video');
+    const propagateVideoButton = document.getElementById('propagate-video');
+    const labelSelector = document.getElementById('label-selector');
+    const statusDisplay = document.getElementById('status-display');
+    const spinnerContainer = document.getElementById('spinner-container');
+    const videoControls = document.getElementById('video-controls');
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      initializeCanvas();
+      setupEventListeners();
+      updateStatus('Application initialized. Ready to upload media.');
+    });
+
+    function initializeCanvas() {
+      canvas = document.getElementById('canvas');
+      context = canvas.getContext('2d');
+      imageCanvas = document.getElementById('image-canvas');
+      imageContext = imageCanvas.getContext('2d');
+      tempCanvas = document.getElementById('temp-canvas');
+      tempContext = tempCanvas.getContext('2d');
+      
+      sliderWrapper = document.getElementById('slider-wrapper');
+      slider = document.getElementById('brush-size');
+      brushSizeDisplay = document.getElementById('brush-size-display');
+      
+      slider.addEventListener('input', function() {
+        brushSize = this.value;
+        brushSizeDisplay.textContent = brushSize;
+      });
+    }
+
+    function setupEventListeners() {
+      // File upload
+      fileInputWrapper.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', handleFileUpload);
+
+      // Tool buttons
+      magicToolButton.addEventListener('click', toggleMagicTool);
+      drawRectButton.addEventListener('click', toggleRectTool);
+      drawMaskButton.addEventListener('click', togglePencilTool);
+      undoPathButton.addEventListener('click', undoLastAction);
+      removeImageButton.addEventListener('click', clearAllAnnotations);
+      segEverythingButton.addEventListener('click', segmentEverything);
+      downloadImageButton.addEventListener('click', downloadImage);
+      downloadVideoButton.addEventListener('click', downloadVideo);
+      propagateVideoButton.addEventListener('click', propagateToVideo);
+
+      // Previous/Next frame navigation (if present)
+      const prevBtn = document.getElementById('prev-frame');
+      const nextBtn = document.getElementById('next-frame');
+      if (prevBtn && nextBtn) {
+        prevBtn.addEventListener('click', gotoPreviousFrame);
+        nextBtn.addEventListener('click', gotoNextFrame);
+      }
+
+      // Canvas events
+      canvas.addEventListener('mousedown', handleMouseDown);
+      canvas.addEventListener('mousemove', handleMouseMove);
+      canvas.addEventListener('mouseup', handleMouseUp);
+      canvas.addEventListener('contextmenu', e => e.preventDefault());
+    }
+    // --- Frame Navigation Logic ---
+    function gotoPreviousFrame() {
+      if (typeof currentVideoFrame !== 'undefined' && typeof totalVideoFrames !== 'undefined') {
+        if (currentVideoFrame > 0) {
+          currentVideoFrame--;
+          updateFrameInfoDisplay();
+        }
+      }
+    }
+
+    function gotoNextFrame() {
+      if (typeof currentVideoFrame !== 'undefined' && typeof totalVideoFrames !== 'undefined') {
+        if (currentVideoFrame < totalVideoFrames - 1) {
+          currentVideoFrame++;
+          updateFrameInfoDisplay();
+        }
+      }
+    }
+
+    function updateFrameInfoDisplay() {
+      const frameInfo = document.getElementById('frame-info');
+      if (frameInfo) {
+        frameInfo.textContent = `Frame ${currentVideoFrame + 1} of ${totalVideoFrames}`;
+      }
+      // Optionally: update the displayed frame here if you have frame data
+    }
+
+    function updateStatus(message) {
+      const timestamp = new Date().toLocaleTimeString();
+      statusDisplay.textContent = `[${timestamp}] ${message}`;
+      console.log(message);
+    }
+
+    function showSpinner(show = true) {
+      if (show) {
+        spinnerContainer.classList.remove('d-none');
+      } else {
+        spinnerContainer.classList.add('d-none');
+      }
+    }
+
+    function clearActiveTools() {
+      document.querySelectorAll('.button').forEach(btn => btn.classList.remove('active'));
+      isMagicToolActive = false;
+      isRecting = false;
+      isDrawing = false;
+      isErasing = false;
+      canvas.style.cursor = 'default';
+      sliderWrapper.style.display = 'none';
+    }
+
+    async function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      showSpinner(true);
+      updateStatus(`Uploading ${file.type.startsWith('video/') ? 'video' : 'image'}: ${file.name}`);
+
+      try {
+        const formData = new FormData();
+        
+        if (file.type.startsWith('video/')) {
+          // Video upload
+          formData.append('video', file);
+          const response = await fetch('/video', { method: 'POST', body: formData });
+          const result = await response.json();
+          
+          if (response.ok) {
+            isVideoMode = true;
+            videoControls.classList.add('show');
+            downloadVideoButton.style.display = 'inline-flex';
+            propagateVideoButton.style.display = 'inline-flex';
+            updateStatus('Video uploaded successfully. Ready for annotation.');
+          } else {
+            throw new Error(result.message || 'Video upload failed');
+          }
+        } else {
+          // Image upload
+          formData.append('image', file);
+          const response = await fetch('/image', { method: 'POST', body: formData });
+          const result = await response.json();
+          
+          if (response.ok) {
+            isVideoMode = false;
+            videoControls.classList.remove('show');
+            downloadVideoButton.style.display = 'none';
+            propagateVideoButton.style.display = 'none';
+            
+            // Display image on canvas
+            const img = new Image();
+            img.onload = function() {
+              displayImage(img);
+            };
+            img.src = URL.createObjectURL(file);
+            
+            updateStatus('Image uploaded successfully. Ready for annotation.');
+          } else {
+            throw new Error(result.message || 'Image upload failed');
+          }
+        }
+      } catch (error) {
+        updateStatus(`Upload error: ${error.message}`);
+        console.error('Upload error:', error);
+      } finally {
+        showSpinner(false);
+      }
+    }
+
+    function displayImage(img) {
+      // Calculate scaling to fit canvas
+      scaleFactor = Math.min(canvas.width / img.width, canvas.height / img.height);
+      scaledWidth = img.width * scaleFactor;
+      scaledHeight = img.height * scaleFactor;
+      scaledX = (canvas.width - scaledWidth) / 2;
+      scaledY = (canvas.height - scaledHeight) / 2;
+      
+      // Clear and draw image
+      imageContext.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
+      imageContext.drawImage(img, scaledX, scaledY, scaledWidth, scaledHeight);
+      
+      // Clear overlay
+      context.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function toggleMagicTool() {
+      clearActiveTools();
+      isMagicToolActive = true;
+      magicToolButton.classList.add('active');
+      canvas.style.cursor = 'crosshair';
+      updateStatus('Magic tool activated. Click on objects to segment them.');
+    }
+
+    function toggleRectTool() {
+      clearActiveTools();
+      isRecting = true;
+      drawRectButton.classList.add('active');
+      canvas.style.cursor = 'crosshair';
+      updateStatus('Rectangle tool activated. Click and drag to create bounding boxes.');
+    }
+
+    function togglePencilTool() {
+      clearActiveTools();
+      isDrawing = true;
+      drawMaskButton.classList.add('active');
+      // Ensure temp-canvas is on top for drawing
+      if (typeof tempCanvas !== 'undefined' && typeof canvas !== 'undefined' && typeof imageCanvas !== 'undefined') {
+        tempCanvas.style.zIndex = 3;
+        canvas.style.zIndex = 2;
+        imageCanvas.style.zIndex = 1;
+      }
+      canvas.style.cursor = 'crosshair';
+      sliderWrapper.style.display = 'block';
+      updateStatus('Pencil tool activated. Draw freehand annotations.');
+    }
+
+    function handleMouseDown(event) {
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+
+      if (isMagicToolActive) {
+        handleMagicClick(x, y, event.button === 0);
+      } else if (isRecting) {
+        isDown = true;
+        startRectangle(x, y);
+      } else if (isDrawing) {
+        isDown = true;
+        startDrawing(x, y);
+      }
+    }
+
+    function handleMouseMove(event) {
+      if (!isDown) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+
+      if (isDrawing) {
+        continueDrawing(x, y);
+      } else if (isRecting) {
+        updateRectangle(x, y);
+      }
+    }
+
+    function handleMouseUp(event) {
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+
+      if (isRecting && isDown) {
+        finishRectangle(x, y);
+        isDown = false;
+      } else if (isDrawing && isDown) {
+        finishDrawing();
+        isDown = false;
+      }
+    }
+
+    async function handleMagicClick(x, y, isPositive) {
+      showSpinner(true);
+      updateStatus('Processing magic tool click...');
+
+      try {
+        // Convert canvas coordinates to image coordinates
+        const imageX = (x - scaledX) / scaleFactor;
+        const imageY = (y - scaledY) / scaleFactor;
+
+        const formData = new FormData();
+        formData.append('type', isPositive ? '1' : '0');
+        formData.append('click_list', `${imageX},${imageY}`);
+        // Send selected object type to backend
+        const labelSelector = document.getElementById('label-selector');
+        if (labelSelector) {
+          formData.append('object_type', labelSelector.value);
+        }
+
+        const response = await fetch('/click', { method: 'POST', body: formData });
+        const result = await response.json();
+
+        if (response.ok) {
+          displayMask(result.masks);
+          updateStatus('Magic tool segmentation completed.');
+        } else {
+          throw new Error(result.message || 'Magic tool failed');
+        }
+      } catch (error) {
+        updateStatus(`Magic tool error: ${error.message}`);
+        console.error('Magic tool error:', error);
+      } finally {
+        showSpinner(false);
+      }
+    }
+
+    let rectStartX, rectStartY;
+
+    function startRectangle(x, y) {
+      isDown = true;
+      rectStartX = x;
+      rectStartY = y;
+    }
+
+    function updateRectangle(x, y) {
+      // Clear temporary canvas and redraw rectangle
+      tempContext.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+      tempContext.strokeStyle = 'red';
+      tempContext.lineWidth = 2;
+      tempContext.strokeRect(rectStartX, rectStartY, x - rectStartX, y - rectStartY);
+    }
+
+    async function finishRectangle(x, y) {
+      isDown = false;
+      tempContext.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+      
+      showSpinner(true);
+      updateStatus('Processing rectangle...');
+      
+      try {
+        // Convert to image coordinates
+        const startX = (rectStartX - scaledX) / scaleFactor;
+        const startY = (rectStartY - scaledY) / scaleFactor;
+        const endX = (x - scaledX) / scaleFactor;
+        const endY = (y - scaledY) / scaleFactor;
+        
+        const formData = new FormData();
+        formData.append('start_x', Math.round(Math.min(startX, endX)));
+        formData.append('start_y', Math.round(Math.min(startY, endY)));
+        formData.append('end_x', Math.round(Math.max(startX, endX)));
+        formData.append('end_y', Math.round(Math.max(startY, endY)));
+        
+        const response = await fetch('/rect', { method: 'POST', body: formData });
+        const result = await response.json();
+        
+        if (response.ok) {
+          displayMask(result.masks);
+          updateStatus('Rectangle segmentation completed.');
+        } else {
+          throw new Error(result.message || 'Rectangle tool failed');
+        }
+      } catch (error) {
+        updateStatus(`Rectangle tool error: ${error.message}`);
+        console.error('Rectangle tool error:', error);
+      } finally {
+        showSpinner(false);
+      }
+    }
+
+    let currentPath = [];
+
+
+    function startDrawing(x, y) {
+      isDown = true;
+      lastX = x;
+      lastY = y;
+      currentPath = [{ x, y }];
+      // Start a new path for immediate feedback on temp-canvas
+      tempContext.save();
+      tempContext.globalAlpha = 0.7;
+      tempContext.strokeStyle = 'rgba(0, 255, 0, 0.7)';
+      tempContext.lineWidth = brushSize;
+      tempContext.beginPath();
+      tempContext.moveTo(x, y);
+      tempContext.restore();
+    }
+
+    function continueDrawing(x, y) {
+      // Draw on temp-canvas for immediate feedback
+      tempContext.save();
+      tempContext.globalAlpha = 0.7;
+      tempContext.strokeStyle = 'rgba(0, 255, 0, 0.7)';
+      tempContext.lineWidth = brushSize;
+      tempContext.beginPath();
+      tempContext.moveTo(lastX, lastY);
+      tempContext.lineTo(x, y);
+      tempContext.stroke();
+      tempContext.restore();
+
+      currentPath.push({ x, y });
+      lastX = x;
+      lastY = y;
+    }
+
+    async function finishDrawing() {
+      isDown = false;
+
+      if (currentPath.length < 2) {
+        // Clear the overlay if nothing drawn
+        tempContext.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+        return;
+      }
+
+      showSpinner(true);
+      updateStatus('Processing pencil drawing...');
+
+      try {
+        // Convert path to image coordinates
+        const imagePath = currentPath.map(point => ({
+          x: (point.x - scaledX) / scaleFactor,
+          y: (point.y - scaledY) / scaleFactor
+        }));
+
+        const formData = new FormData();
+        formData.append('path_data', JSON.stringify([{ points: imagePath }]));
+
+        const response = await fetch('/pencil_draw', { method: 'POST', body: formData });
+        const result = await response.json();
+
+        // Clear the temp overlay after drawing
+        tempContext.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+        if (response.ok && result.masks) {
+          displayMask(result.masks);
+          updateStatus('Pencil drawing completed.');
+        } else if (response.ok) {
+          updateStatus('Pencil drawing completed.');
+        } else {
+          throw new Error(result.message || 'Pencil drawing failed');
+        }
+      } catch (error) {
+        updateStatus(`Pencil drawing error: ${error.message}`);
+        console.error('Pencil drawing error:', error);
+      } finally {
+        showSpinner(false);
+        currentPath = [];
+      }
+    }
+
+    function displayMask(maskBase64) {
+      const img = new Image();
+      img.onload = function() {
+        // Draw mask with transparency
+        context.globalAlpha = 0.5;
+        context.drawImage(img, scaledX, scaledY, scaledWidth, scaledHeight);
+        context.globalAlpha = 1.0;
+        // Clear temp-canvas after displaying mask
+        if (typeof tempContext !== 'undefined' && typeof tempCanvas !== 'undefined') {
+          tempContext.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+        }
+      };
+      img.src = `data:image/png;base64,${maskBase64}`;
+    }
+
+    async function undoLastAction() {
+      try {
+        const response = await fetch('/undo', { method: 'POST' });
+        const result = await response.json();
+        
+        // Clear and redraw canvas
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        updateStatus(result.message);
+      } catch (error) {
+        updateStatus(`Undo error: ${error.message}`);
+      }
+    }
+
+    function clearAllAnnotations() {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      if (typeof tempContext !== 'undefined' && typeof tempCanvas !== 'undefined') {
+        tempContext.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+      }
+      drawnPaths = [];
+      oriDrawnPaths = [];
+      promptPoints = [];
+      updateStatus('All annotations cleared.');
+    }
+
+    async function segmentEverything() {
+      showSpinner(true);
+      updateStatus('Segmenting everything in the image...');
+      
+      try {
+        const response = await fetch('/everything', { method: 'POST' });
+        const result = await response.json();
+        
+        if (response.ok) {
+          displayMask(result.masks);
+          updateStatus('Automatic segmentation completed.');
+        } else {
+          throw new Error(result.message || 'Segmentation failed');
+        }
+      } catch (error) {
+        updateStatus(`Segmentation error: ${error.message}`);
+        console.error('Segmentation error:', error);
+      } finally {
+        showSpinner(false);
+      }
+    }
+
+    async function propagateToVideo() {
+      if (!isVideoMode) {
+        updateStatus('No video loaded for propagation.');
+        return;
+      }
+      
+      showSpinner(true);
+      updateStatus('Propagating annotations to entire video...');
+      
+      try {
+        const response = await fetch('/propagate_video', { method: 'POST' });
+        const result = await response.json();
+        
+        if (response.ok) {
+          updateStatus(`Video propagation completed: ${result.message}`);
+        } else {
+          throw new Error(result.message || 'Video propagation failed');
+        }
+      } catch (error) {
+        updateStatus(`Propagation error: ${error.message}`);
+        console.error('Propagation error:', error);
+      } finally {
+        showSpinner(false);
+      }
+    }
+
+    function downloadImage() {
+      // Create download link for canvas
+      const link = document.createElement('a');
+      link.download = 'annotated_image.png';
+      link.href = canvas.toDataURL();
+      link.click();
+      updateStatus('Image downloaded.');
+    }
+
+    async function downloadVideo() {
+      try {
+        const response = await fetch('/download_video');
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'annotated_video.mp4';
+          link.click();
+          window.URL.revokeObjectURL(url);
+          updateStatus('Video downloaded.');
+        } else {
+          throw new Error('No processed video available');
+        }
+      } catch (error) {
+        updateStatus(`Download error: ${error.message}`);
+      }
+    }
+
+    // Initialize brush size display
+    brushSizeDisplay.textContent = brushSize;
+  </script>
+</body>
+
+</html>
