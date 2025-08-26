@@ -392,10 +392,6 @@
             4. Click "Process Images" to generate the combined result
           </p>
         </div>
-        <div style="display: none;">
-          <input type="file" id="lane-image-input" accept="image/*" />
-          <input type="file" id="drivable-image-input" accept="image/*" />
-        </div>
         <button class="postprocess-button" id="process-images-button" disabled>
           Process Images
         </button>
@@ -507,7 +503,6 @@
         replacementColor = labelColors[selectedLabel];
         console.log('Selected label:', selectedLabel);
         console.log('Replacement color updated to:', replacementColor);
-        updateProcessButton(); // Update button when label changes
     });
     const alpha_255 = 191.25;
     const alpha_1 = 1; // for manual drawer (avoid color overlay artifact when = 0.75)
@@ -870,7 +865,6 @@
           color: {...replacementColor}, // Store the color
           label: currentLabel // Store the label
         });
-        updateProcessButton(); // Update process button when annotation is created
       } 
       else if (masktype == "magic") {
         let pixels = [];
@@ -941,7 +935,6 @@
             // Draw all segments on the canvas, including the new one
             drawnPaths.push({ points: pixels, type: "magic", color: {...replacementColor}, label: currentLabel });
             oriDrawnPaths.push({ points: pixels, type: "magic", color: {...replacementColor}, label: currentLabel });
-            updateProcessButton(); // Update post-processing button state
             redrawPaths(canvas, drawnPaths);
             drawPromptPointOnClick(promptPoints[0], canvas);
             window.currentMagicSegment = pixels;
@@ -1054,6 +1047,17 @@
     const magicToolButton = document.getElementById('magic-tool');
     const fileInputWrapper = document.getElementById('file-input-wrapper');
     const drawRectButton = document.getElementById('draw-rect');
+    const postprocessToggle = document.getElementById('postprocess-toggle');
+    const postprocessingPanel = document.getElementById('postprocessing-panel');
+    const processImagesButton = document.getElementById('process-images-button');
+    const downloadResultButton = document.getElementById('download-result-button');
+    
+    console.log('Postprocessing elements found:', {
+      postprocessToggle: !!postprocessToggle,
+      postprocessingPanel: !!postprocessingPanel,
+      processImagesButton: !!processImagesButton,
+      downloadResultButton: !!downloadResultButton
+    });
 
     function stopDrawing() {
       canvas.style.cursor = "auto";
@@ -1095,7 +1099,6 @@
               color: {...replacementColor},
               label: currentLabel
           });
-          updateProcessButton(); // Update process button when annotation is created
           redrawPaths(maskcanvas, oriDrawnPaths);
 
           const formData = new FormData();
@@ -1377,7 +1380,6 @@
           points: [],
           lineWidth: brushSize / scaleFactor,
         });
-        updateProcessButton(); // Update process button when annotation is created
       } else if (isDrawingRect) {
         rectStartX = event.offsetX;
         rectStartY = event.offsetY;
@@ -1422,7 +1424,6 @@ canvas.addEventListener('mouseup', (event) => {
                 // Draw all segments on the canvas, including the new one
                 drawnPaths.push({ points: pixels, type: "rect", color: {...replacementColor}, label: currentLabel });
                 oriDrawnPaths.push({ points: pixels, type: "rect", color: {...replacementColor}, label: currentLabel });
-                updateProcessButton(); // Update post-processing button state
                 redrawPaths(canvas, drawnPaths);
                 window.currentRectSegment = pixels;
                 markAnnotationUnsaved();
@@ -1868,20 +1869,12 @@ canvas.addEventListener('mouseup', (event) => {
     let drivableImageFile = null;
     let processedResultBlob = null;
 
-    const postprocessToggle = document.getElementById('postprocess-toggle');
-    const postprocessingPanel = document.getElementById('postprocessing-panel');
-    const laneImageInput = document.getElementById('lane-image-input');
-    const drivableImageInput = document.getElementById('drivable-image-input');
-    const processImagesButton = document.getElementById('process-images-button');
-    const downloadResultButton = document.getElementById('download-result-button');
-
     // Toggle postprocessing panel
     postprocessToggle.addEventListener('click', () => {
-      const computedStyle = window.getComputedStyle(postprocessingPanel);
-      const isVisible = computedStyle.display !== 'none';
+      const isVisible = postprocessingPanel.style.display === 'block';
       postprocessingPanel.style.display = isVisible ? 'none' : 'block';
       
-      console.log('Panel toggle clicked, now visible:', !isVisible);
+      console.log('Postprocessing panel toggled:', isVisible ? 'hidden' : 'visible');
       
       // Stop all other tools when opening postprocessing
       if (!isVisible) {
@@ -1892,63 +1885,35 @@ canvas.addEventListener('mouseup', (event) => {
       }
     });
 
-    // Handle lane image selection (optional - for manual upload)
-    laneImageInput.addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        laneImageFile = file;
-        console.log('Lane image selected:', file.name);
-      }
-    });
-
-    // Handle drivable area image selection (optional - for manual upload)  
-    drivableImageInput.addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        drivableImageFile = file;
-        console.log('Drivable area image selected:', file.name);
-      }
-    });
-
     // Update process button state
     function updateProcessButton() {
-      if (!processImagesButton) {
-        console.error('updateProcessButton called but processImagesButton is null');
-        return;
-      }
-      
       const laneAnnotations = oriDrawnPaths.filter(path => path.label === 'lanes');
       const drivableAnnotations = oriDrawnPaths.filter(path => path.label === 'drivableArea');
       const hasAnnotations = laneAnnotations.length > 0 || drivableAnnotations.length > 0;
       const hasImage = originalUnresizedImageData !== undefined;
       
-      const shouldEnable = hasAnnotations && hasImage;
-      processImagesButton.disabled = !shouldEnable;
-      
-      console.log('Process button updated:', {
-        laneAnnotations: laneAnnotations.length,
-        drivableAnnotations: drivableAnnotations.length,
+      console.log('updateProcessButton:', { 
+        laneAnnotations: laneAnnotations.length, 
+        drivableAnnotations: drivableAnnotations.length, 
+        hasAnnotations, 
         hasImage,
-        shouldEnable,
-        buttonDisabled: processImagesButton.disabled
+        processImagesButton: !!processImagesButton
       });
+      
+      if (processImagesButton) {
+        processImagesButton.disabled = !(hasAnnotations && hasImage);
+      }
     }
 
     // Process images using current annotations
     processImagesButton.addEventListener('click', async () => {
-      console.log('=== PROCESS BUTTON CLICKED ===');
-      console.log('Button disabled:', processImagesButton.disabled);
+      console.log('Process Images button clicked!');
       
       // Check if there are annotations for both lanes and drivable areas
       const laneAnnotations = oriDrawnPaths.filter(path => path.label === 'lanes');
       const drivableAnnotations = oriDrawnPaths.filter(path => path.label === 'drivableArea');
 
-      console.log('Found annotations:', {
-        lanes: laneAnnotations.length,
-        drivable: drivableAnnotations.length,
-        total: oriDrawnPaths.length,
-        allPaths: oriDrawnPaths.map(p => ({ type: p.type, label: p.label }))
-      });
+      console.log('Annotations found:', { lanes: laneAnnotations.length, drivable: drivableAnnotations.length });
 
       if (laneAnnotations.length === 0 && drivableAnnotations.length === 0) {
         alert('Please create some annotations first. Use the magic tool or brush to annotate lanes and drivable areas.');
@@ -1964,83 +1929,60 @@ canvas.addEventListener('mouseup', (event) => {
         processImagesButton.disabled = true;
         processImagesButton.textContent = 'Processing...';
 
-        // Create lane mask from annotations
-        const laneCanvas = document.createElement('canvas');
-        laneCanvas.width = originalUnresizedImageData.width;
-        laneCanvas.height = originalUnresizedImageData.height;
-        const laneCtx = laneCanvas.getContext('2d');
+        // Create combined mask with both lane and drivable area annotations
+        // Use the same approach as the download button to get solid masks
+        const combinedCanvas = document.createElement('canvas');
+        combinedCanvas.width = originalUnresizedImageData.width;
+        combinedCanvas.height = originalUnresizedImageData.height;
+        const combinedCtx = combinedCanvas.getContext('2d');
         
-        // Fill with black background first
-        laneCtx.fillStyle = 'black';
-        laneCtx.fillRect(0, 0, laneCanvas.width, laneCanvas.height);
+        // Draw the current canvas content (which already has the solid masks)
+        // Scale and position it correctly on the full-sized canvas
+        combinedCtx.drawImage(canvas, scaledX, scaledY, scaledWidth, scaledHeight, 
+                             0, 0, originalUnresizedImageData.width, originalUnresizedImageData.height);
         
-        // Draw lane annotations
-        for (const path of laneAnnotations) {
-          if (path.type === "magic" || path.type === "rect") {
-            const canvasData = laneCtx.getImageData(0, 0, laneCanvas.width, laneCanvas.height);
-            const data = canvasData.data;
-            for (let i = 0; i < path.points.length; i += 1) {
-              data[path.points[i]] = 255; // white for lanes
-              data[path.points[i] + 1] = 255;
-              data[path.points[i] + 2] = 255;
-              data[path.points[i] + 3] = 255;
+        // Now we need to convert the colors to the specific colors for backend processing
+        // Get the image data and modify colors
+        const imageData = combinedCtx.getImageData(0, 0, combinedCanvas.width, combinedCanvas.height);
+        const data = imageData.data;
+        
+        // Convert colors to match backend expectations
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1]; 
+            const b = data[i + 2];
+            const alpha = data[i + 3];
+            
+            // Skip transparent pixels
+            if (alpha === 0) continue;
+            
+            // Check if this is a lane color (bluish/teal - around RGB 0,160,255)
+            if (b > 200 && g > 100 && r < 100) {
+                // Convert to exact lane color: RGB 0,128,255
+                data[i] = 0;     // Red
+                data[i + 1] = 128; // Green  
+                data[i + 2] = 255; // Blue
+                data[i + 3] = 255; // Alpha
             }
-            laneCtx.putImageData(canvasData, 0, 0);
-          } else if (path.type === "brush") {
-            laneCtx.strokeStyle = 'white';
-            laneCtx.lineWidth = path.lineWidth;
-            laneCtx.globalCompositeOperation = 'source-over';
-            for (const point of path.points) {
-              laneCtx.beginPath();
-              laneCtx.moveTo(point.fromX, point.fromY);
-              laneCtx.lineTo(point.toX, point.toY);
-              laneCtx.stroke();
+            // Check if this is a drivable area color (orange/yellow - around RGB 255,160,0)
+            else if (r > 200 && g > 100 && b < 100) {
+                // Convert to exact drivable color: RGB 255,128,0
+                data[i] = 255;     // Red
+                data[i + 1] = 128; // Green
+                data[i + 2] = 0;   // Blue
+                data[i + 3] = 255; // Alpha
             }
-          }
         }
-
-        // Create drivable area mask from annotations
-        const drivableCanvas = document.createElement('canvas');
-        drivableCanvas.width = originalUnresizedImageData.width;
-        drivableCanvas.height = originalUnresizedImageData.height;
-        const drivableCtx = drivableCanvas.getContext('2d');
         
-        // Fill with black background first
-        drivableCtx.fillStyle = 'black';
-        drivableCtx.fillRect(0, 0, drivableCanvas.width, drivableCanvas.height);
-        
-        // Draw drivable area annotations
-        for (const path of drivableAnnotations) {
-          if (path.type === "magic" || path.type === "rect") {
-            const canvasData = drivableCtx.getImageData(0, 0, drivableCanvas.width, drivableCanvas.height);
-            const data = canvasData.data;
-            for (let i = 0; i < path.points.length; i += 1) {
-              data[path.points[i]] = 255; // white for drivable areas
-              data[path.points[i] + 1] = 255;
-              data[path.points[i] + 2] = 255;
-              data[path.points[i] + 3] = 255;
-            }
-            drivableCtx.putImageData(canvasData, 0, 0);
-          } else if (path.type === "brush") {
-            drivableCtx.strokeStyle = 'white';
-            drivableCtx.lineWidth = path.lineWidth;
-            drivableCtx.globalCompositeOperation = 'source-over';
-            for (const point of path.points) {
-              drivableCtx.beginPath();
-              drivableCtx.moveTo(point.fromX, point.fromY);
-              drivableCtx.lineTo(point.toX, point.toY);
-              drivableCtx.stroke();
-            }
-          }
-        }
+        // Put the modified image data back
+        combinedCtx.putImageData(imageData, 0, 0);
 
-        // Convert canvases to blobs
-        const laneBlob = await canvasToBlob(laneCanvas);
-        const drivableBlob = await canvasToBlob(drivableCanvas);
+        // Convert combined canvas to blob
+        const combinedBlob = await canvasToBlob(combinedCanvas);
 
         const formData = new FormData();
-        formData.append('lane_image', laneBlob, 'lane_mask.png');
-        formData.append('drivable_image', drivableBlob, 'drivable_mask.png');
+        formData.append('mask_image', combinedBlob, 'combined_mask.png');
+        formData.append('image_name', imageName); // Add image name for proper filename
 
         const response = await fetch('/postprocess', {
           method: 'POST',
@@ -2058,7 +2000,7 @@ canvas.addEventListener('mouseup', (event) => {
         const url = URL.createObjectURL(processedResultBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'combined_result.png';
+        a.download = `${imageName}_hdmap.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -2080,6 +2022,7 @@ canvas.addEventListener('mouseup', (event) => {
       }
     });
 
+
     // Download result
     downloadResultButton.addEventListener('click', () => {
       if (!processedResultBlob) {
@@ -2090,7 +2033,7 @@ canvas.addEventListener('mouseup', (event) => {
       const url = URL.createObjectURL(processedResultBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'combined_result.png';
+      a.download = `${imageName}_hdmap.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
