@@ -95,6 +95,104 @@ def process_lane_lines(image):
     
     return centerlines
 
+def process_lane_lines_from_mask(binary_mask):
+    """Process lane binary mask to extract a single straight centerline"""
+    print(f"Processing lane mask with {np.sum(binary_mask > 0)} pixels")
+    
+    if np.sum(binary_mask) == 0:
+        return []
+    
+    # Find all non-zero pixels
+    y_coords, x_coords = np.where(binary_mask > 0)
+    if len(y_coords) == 0:
+        return []
+    
+    # Get the bounding box of all lane pixels
+    min_y, max_y = np.min(y_coords), np.max(y_coords)
+    min_x, max_x = np.min(x_coords), np.max(x_coords)
+    
+    print(f"Lane bounding box: ({min_x}, {min_y}) to ({max_x}, {max_y})")
+    
+    # Calculate the center points at different y-levels to form a centerline
+    centerline_points = []
+    
+    # Sample y-coordinates from top to bottom
+    y_step = max(1, (max_y - min_y) // 20)  # Create about 20 points along the centerline
+    
+    for y in range(min_y, max_y + 1, y_step):
+        # Find x-coordinates that have lane pixels at this y-level (±1 pixel tolerance)
+        y_mask = (y_coords >= y - 1) & (y_coords <= y + 1)
+        if np.any(y_mask):
+            x_at_y = x_coords[y_mask]
+            
+            if len(x_at_y) > 0:
+                # Calculate center x-coordinate at this y-level
+                center_x = int(np.mean(x_at_y))
+                centerline_points.append([center_x, y])
+    
+    # If we have centerline points, create the line
+    if len(centerline_points) >= 2:
+        # Convert to numpy array and reshape for OpenCV
+        centerline = np.array(centerline_points).reshape(-1, 1, 2).astype(np.int32)
+        print(f"Created centerline with {len(centerline_points)} points")
+        return [centerline]
+    
+    # Fallback: create a simple straight line from top-left to bottom-right of lane area
+    elif len(y_coords) > 0:
+        # Find the topmost and bottommost points
+        top_idx = np.argmin(y_coords)
+        bottom_idx = np.argmax(y_coords)
+        
+        start_point = [int(x_coords[top_idx]), int(y_coords[top_idx])]
+        end_point = [int(x_coords[bottom_idx]), int(y_coords[bottom_idx])]
+        
+        # Create a straight line between these points
+        centerline_points = [start_point, end_point]
+        centerline = np.array(centerline_points).reshape(-1, 1, 2).astype(np.int32)
+        print(f"Created fallback straight line from {start_point} to {end_point}")
+        return [centerline]
+    
+    return []
+
+def process_drivable_area_from_mask(binary_mask):
+    """Process drivable area binary mask to extract boundaries"""
+    print(f"Processing drivable mask with {np.sum(binary_mask > 0)} pixels")
+    
+    if np.sum(binary_mask) == 0:
+        return []
+    
+    # Apply smoothing morphological operations for better polygon quality
+    kernel = np.ones((5,5), np.uint8)  # Larger kernel for more smoothing
+    cleaned_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_CLOSE, kernel)
+    cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_OPEN, kernel)
+    
+    # Additional Gaussian blur for smoother boundaries
+    blurred_mask = cv2.GaussianBlur(cleaned_mask, (7, 7), 0)
+    
+    # Re-threshold after blurring to get clean binary mask
+    _, final_mask = cv2.threshold(blurred_mask, 127, 255, cv2.THRESH_BINARY)
+    
+    # Find contours
+    contours, _ = cv2.findContours(final_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    print(f"Found {len(contours)} drivable contours")
+    
+    boundaries = []
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        print(f"Drivable contour area: {area}")
+        
+        # Skip small contours - reduced threshold
+        if area < 500:  # Reduced from 1000 to 500
+            continue
+            
+        # Use better approximation for smoother polygons
+        epsilon = 0.005 * cv2.arcLength(contour, True)
+        polygon = cv2.approxPolyDP(contour, epsilon, True)
+        boundaries.append(polygon)
+    
+    print(f"Returning {len(boundaries)} drivable boundaries")
+    return boundaries
+
 def process_drivable_area(image):
     """Process drivable area to extract accurate boundaries without smoothing"""
     # Convert to HSV for better color detection
