@@ -172,46 +172,77 @@ def process_drivable_area(image):
     
     return boundaries
 
-def process_combined_images_server(lane_image_data, drivable_image_data):
-    """Process lane and drivable area images and combine them for server"""
-    # Convert image data to numpy arrays
-    lane_image = np.array(Image.open(BytesIO(lane_image_data)))
-    drivable_image = np.array(Image.open(BytesIO(drivable_image_data)))
+def process_combined_mask_server(mask_image_data):
+    """Process a single combined mask containing both lanes and drivable areas"""
+    # Convert image data to numpy array
+    mask_image = np.array(Image.open(BytesIO(mask_image_data)))
     
-    # Convert RGB to BGR for OpenCV
-    if len(lane_image.shape) == 3 and lane_image.shape[2] == 3:
-        lane_image = cv2.cvtColor(lane_image, cv2.COLOR_RGB2BGR)
-    if len(drivable_image.shape) == 3 and drivable_image.shape[2] == 3:
-        drivable_image = cv2.cvtColor(drivable_image, cv2.COLOR_RGB2BGR)
+    print(f"Mask image shape: {mask_image.shape}")
+    print(f"Mask image dtype: {mask_image.dtype}")
     
-    # Check if images have the same dimensions
-    if lane_image.shape != drivable_image.shape:
-        print("Warning: Images have different dimensions, resizing...")
-        # Resize drivable image to match lane image
-        drivable_image = cv2.resize(drivable_image, (lane_image.shape[1], lane_image.shape[0]))
+    # Ensure the image is in BGR format with 3 channels
+    if len(mask_image.shape) == 2:
+        # Grayscale image, convert to BGR
+        mask_image = cv2.cvtColor(mask_image, cv2.COLOR_GRAY2BGR)
+    elif len(mask_image.shape) == 3:
+        if mask_image.shape[2] == 4:
+            # RGBA image, convert to BGR
+            mask_image = cv2.cvtColor(mask_image, cv2.COLOR_RGBA2BGR)
+        elif mask_image.shape[2] == 3:
+            # RGB image, convert to BGR
+            mask_image = cv2.cvtColor(mask_image, cv2.COLOR_RGB2BGR)
     
-    # Create a black BGR image for drawing
-    height, width = lane_image.shape[:2]
+    print(f"Processed mask image shape: {mask_image.shape}")
+    
+    # Create a black BGR image for drawing the result
+    height, width = mask_image.shape[:2]
     result_image = np.zeros((height, width, 3), dtype=np.uint8)
     
-    # Process lane lines (convert colored lane regions to single lines)
-    print("Processing lane lines...")
-    lane_lines = process_lane_lines(lane_image)
-    print(f"Found {len(lane_lines)} lane lines")
+    # Extract lane annotations (blue color: RGB 0,128,255 -> BGR 255,128,0)
+    # Use exact color matching for the specific colors used in frontend
+    lane_color_bgr = np.array([255, 128, 0], dtype=np.uint8)  # Exact blue color in BGR
+    lane_mask = cv2.inRange(mask_image, lane_color_bgr, lane_color_bgr)
     
-    # Draw lane lines in green (thin centerlines)
-    for line in lane_lines:
-        if len(line) > 1:
-            cv2.polylines(result_image, [line], isClosed=False, color=(0, 255, 0), thickness=3)
+    # Extract drivable area annotations (orange color: RGB 255,128,0 -> BGR 0,128,255)  
+    drivable_color_bgr = np.array([0, 128, 255], dtype=np.uint8)  # Exact orange color in BGR
+    drivable_mask = cv2.inRange(mask_image, drivable_color_bgr, drivable_color_bgr)
+    
+    # If exact matching doesn't work, try with small tolerance
+    if np.sum(lane_mask) == 0:
+        lower_lane = np.array([250, 120, 0], dtype=np.uint8)
+        upper_lane = np.array([255, 135, 5], dtype=np.uint8)
+        lane_mask = cv2.inRange(mask_image, lower_lane, upper_lane)
+        
+    if np.sum(drivable_mask) == 0:
+        lower_drivable = np.array([0, 120, 250], dtype=np.uint8)
+        upper_drivable = np.array([5, 135, 255], dtype=np.uint8)
+        drivable_mask = cv2.inRange(mask_image, lower_drivable, upper_drivable)
+    
+    print(f"Lane mask pixels found: {np.sum(lane_mask > 0)}")
+    print(f"Drivable mask pixels found: {np.sum(drivable_mask > 0)}")
+    
+    # Process lane lines (convert colored lane regions to centerlines)
+    print("Processing lane lines from combined mask...")
+    if np.any(lane_mask):
+        from postprocessing import process_lane_lines_from_mask
+        lane_lines = process_lane_lines_from_mask(lane_mask)
+        print(f"Found {len(lane_lines)} lane lines")
+        
+        # Draw lane lines in green (thin centerlines)
+        for line in lane_lines:
+            if len(line) > 1:
+                cv2.polylines(result_image, [line], isClosed=False, color=(0, 255, 0), thickness=3)
     
     # Process drivable area boundaries
-    print("Processing drivable area boundaries...")
-    drivable_boundaries = process_drivable_area(drivable_image)
-    print(f"Found {len(drivable_boundaries)} drivable area boundaries")
-    
-    # Draw drivable area boundaries in blue
-    for boundary in drivable_boundaries:
-        cv2.polylines(result_image, [boundary], isClosed=True, color=(255, 0, 0), thickness=2)
+    print("Processing drivable area boundaries from combined mask...")
+    if np.any(drivable_mask):
+        from postprocessing import process_drivable_area_from_mask
+        drivable_boundaries = process_drivable_area_from_mask(drivable_mask)
+        print(f"Found {len(drivable_boundaries)} drivable area boundaries")
+        
+        # Draw drivable area boundaries in blue
+        for boundary in drivable_boundaries:
+            cv2.polylines(result_image, [boundary], isClosed=True, color=(255, 0, 0), thickness=2)
     
     # Convert back to RGB for PIL
     result_image = cv2.cvtColor(result_image, cv2.COLOR_BGR2RGB)
@@ -751,37 +782,40 @@ async def seg_everything():
 
 @app.post("/postprocess")
 async def postprocess_images(
-    lane_image: UploadFile = File(...),
-    drivable_image: UploadFile = File(...)
+    mask_image: UploadFile = File(...),
+    image_name: str = Form("image")
 ):
-    """Postprocess lane and drivable area images"""
+    """Postprocess combined mask containing both lanes and drivable areas"""
     try:
-        # Read the image data
-        lane_data = await lane_image.read()
-        drivable_data = await drivable_image.read()
+        # Read the combined mask image data
+        mask_data = await mask_image.read()
         
-        print(f"Processing images: {lane_image.filename}, {drivable_image.filename}")
+        print(f"Processing combined mask: {mask_image.filename}")
+        print(f"Image name: {image_name}")
         
-        # Process the images
-        result_image = process_combined_images_server(lane_data, drivable_data)
+        # Process the combined mask
+        result_image = process_combined_mask_server(mask_data)
         
         # Convert result to PIL Image and save to a temporary file
         pil_image = Image.fromarray(result_image)
         
-        # Create a temporary file
+        # Create a temporary file with the proper name
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
         pil_image.save(temp_file.name, format='PNG')
         temp_file.close()
         
         print(f"Saved temporary result to: {temp_file.name}")
         
+        # Use the image name for the download filename
+        output_filename = f"{image_name}_hdmap.png"
+        
         # Return as FileResponse which handles downloads properly
         return FileResponse(
             temp_file.name,
             media_type="image/png",
-            filename="combined_result.png",
+            filename=output_filename,
             headers={
-                "Content-Disposition": "attachment; filename=combined_result.png"
+                "Content-Disposition": f"attachment; filename={output_filename}"
             }
         )
         
